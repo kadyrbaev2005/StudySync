@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -18,6 +19,20 @@ func NewTaskController(repo *repository.TaskRepository) *TaskController {
 	return &TaskController{Repo: repo}
 }
 
+// CreateTask godoc
+// @Summary      Create a new task
+// @Description  Creates a new task. Requires authentication.
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        Authorization header string true "Bearer token"
+// @Param        task body models.Task true "Task payload"
+// @Success      201 {object} models.Task
+// @Failure      400 {object} map[string]string
+// @Failure      401 {object} map[string]string
+// @Failure      500 {object} map[string]string
+// @Router       /tasks [post]
+// @Security     BearerAuth
 func (c *TaskController) CreateTask(ctx *gin.Context) {
 	var task models.Task
 	if err := ctx.ShouldBindJSON(&task); err != nil {
@@ -31,24 +46,64 @@ func (c *TaskController) CreateTask(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, task)
 }
 
+// GetAllTasks godoc
+// @Summary      List all tasks
+// @Description  Retrieves all tasks. Requires authentication.
+// @Tags         tasks
+// @Produce      json
+// @Param        Authorization header string true "Bearer token"
+// @Success      200 {array} models.Task
+// @Failure      401 {object} map[string]string
+// @Failure      500 {object} map[string]string
+// @Router       /tasks [get]
+// @Security     BearerAuth
 func (c *TaskController) GetAllTasks(ctx *gin.Context) {
 	tasks, err := c.Repo.GetAll()
 	if err != nil {
+		fmt.Printf("GetAllTasks error: %v\n", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch tasks"})
 		return
 	}
 	ctx.JSON(http.StatusOK, tasks)
 }
 
-func (c *TaskController) DeleteTask(ctx *gin.Context) {
+// GetTaskByID godoc
+// @Summary      Get a task by ID
+// @Description  Retrieves a task by its ID. Requires authentication.
+// @Tags         tasks
+// @Produce      json
+// @Param        Authorization header string true "Bearer token"
+// @Param        id path int true "Task ID"
+// @Success      200 {object} models.Task
+// @Failure      401 {object} map[string]string
+// @Failure      404 {object} map[string]string
+// @Router       /tasks/{id} [get]
+// @Security     BearerAuth
+func (c *TaskController) GetTaskByID(ctx *gin.Context) {
 	id, _ := strconv.Atoi(ctx.Param("id"))
-	if err := c.Repo.Delete(uint(id)); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
+	task, err := c.Repo.GetByID(uint(id))
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	ctx.JSON(http.StatusOK, task)
 }
 
+// UpdateTask godoc
+// @Summary      Update a task
+// @Description  Updates fields of a task. Requires authentication.
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        Authorization header string true "Bearer token"
+// @Param        id path int true "Task ID"
+// @Param        data body map[string]interface{} true "Task fields to update"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} map[string]string
+// @Failure      401 {object} map[string]string
+// @Failure      500 {object} map[string]string
+// @Router       /tasks/{id} [put]
+// @Security     BearerAuth
 func (c *TaskController) UpdateTask(ctx *gin.Context) {
 	id, _ := strconv.Atoi(ctx.Param("id"))
 	var data map[string]interface{}
@@ -64,12 +119,23 @@ func (c *TaskController) UpdateTask(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "task updated"})
 }
 
-func (c *TaskController) GetTaskByID(ctx *gin.Context) {
+// DeleteTask godoc
+// @Summary      Delete a task
+// @Description  Deletes a task by ID. Requires authentication.
+// @Tags         tasks
+// @Produce      json
+// @Param        Authorization header string true "Bearer token"
+// @Param        id path int true "Task ID"
+// @Success      200 {object} map[string]string
+// @Failure      401 {object} map[string]string
+// @Failure      500 {object} map[string]string
+// @Router       /tasks/{id} [delete]
+// @Security     BearerAuth
+func (c *TaskController) DeleteTask(ctx *gin.Context) {
 	id, _ := strconv.Atoi(ctx.Param("id"))
-	task, err := c.Repo.GetByID(uint(id))
-	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+	if err := c.Repo.Delete(uint(id)); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
 		return
 	}
-	ctx.JSON(http.StatusOK, task)
+	ctx.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }

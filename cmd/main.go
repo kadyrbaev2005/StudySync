@@ -1,6 +1,29 @@
+// @title StudySync API
+// @version 1.0
+// @description REST API for StudySync — tasks, subjects, deadlines and auth.
+// @termsOfService http://example.com/terms/
+
+// @contact.name Team StudySync
+// @contact.url http://example.com
+// @contact.email team@example.com
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host localhost:8080
+// @BasePath /
+// @schemes http
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
+
 package main
 
 import (
+	_ "github.com/kadyrbayev2005/studysync/docs"
+
 	"context"
 	"log"
 	"os"

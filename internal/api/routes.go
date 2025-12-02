@@ -1,10 +1,13 @@
 package api
 
 import (
+	_ "github.com/kadyrbayev2005/studysync/docs"
 	"github.com/kadyrbayev2005/studysync/internal/controllers"
 	"github.com/kadyrbayev2005/studysync/internal/middleware"
 	"github.com/kadyrbayev2005/studysync/internal/repository"
 	"github.com/kadyrbayev2005/studysync/internal/services"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -34,6 +37,8 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 
 	// public routes
 	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// protected routes: require JWT
 	protected := r.Group("/")
