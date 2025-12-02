@@ -19,11 +19,24 @@ func NewDeadlineController(repo *repository.DeadlineRepository, taskRepo *reposi
 	return &DeadlineController{Repo: repo, TaskRepo: taskRepo}
 }
 
+// CreateDeadline godoc
+// @Summary Create a deadline
+// @Description Create a new deadline for a task. Requires authentication.
+// @Tags deadlines
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Param deadline body struct{TaskID uint "json:\"task_id\""; DueDate time.Time "json:\"due_date\""} true "Deadline payload"
+// @Success 201 {object} models.Deadline
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /deadlines [post]
+// @Security BearerAuth
+
+// @Param deadline body models.DeadlineRequest true "Deadline payload"
 func (c *DeadlineController) CreateDeadline(ctx *gin.Context) {
-	var payload struct {
-		TaskID  uint      `json:"task_id" binding:"required"`
-		DueDate time.Time `json:"due_date" binding:"required"`
-	}
+	var payload models.DeadlineRequest
 	if err := ctx.ShouldBindJSON(&payload); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -47,6 +60,16 @@ func (c *DeadlineController) CreateDeadline(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, d)
 }
 
+// GetAllDeadlines godoc
+// @Summary List deadlines
+// @Description Get all deadlines
+// @Tags deadlines
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Success 200 {array} models.Deadline
+// @Failure 401 {object} map[string]string
+// @Router /deadlines [get]
+// @Security BearerAuth
 func (c *DeadlineController) GetAllDeadlines(ctx *gin.Context) {
 	deadlines, err := c.Repo.GetAll()
 	if err != nil {
@@ -56,6 +79,18 @@ func (c *DeadlineController) GetAllDeadlines(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, deadlines)
 }
 
+// GetDeadlineByID godoc
+// @Summary Get deadline by ID
+// @Description Get a deadline by its ID
+// @Tags deadlines
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Param id path int true "Deadline ID"
+// @Success 200 {object} models.Deadline
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /deadlines/{id} [get]
+// @Security BearerAuth
 func (c *DeadlineController) GetDeadlineByID(ctx *gin.Context) {
 	id, _ := strconv.Atoi(ctx.Param("id"))
 	d, err := c.Repo.GetByID(uint(id))
@@ -66,6 +101,18 @@ func (c *DeadlineController) GetDeadlineByID(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, d)
 }
 
+// DeleteDeadline godoc
+// @Summary Delete a deadline
+// @Description Delete a deadline by ID
+// @Tags deadlines
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Param id path int true "Deadline ID"
+// @Success 200 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /deadlines/{id} [delete]
+// @Security BearerAuth
 func (c *DeadlineController) DeleteDeadline(ctx *gin.Context) {
 	id, _ := strconv.Atoi(ctx.Param("id"))
 	if err := c.Repo.Delete(uint(id)); err != nil {

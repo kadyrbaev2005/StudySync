@@ -31,6 +31,17 @@ type loginPayload struct {
 	Password string `json:"password" binding:"required"`
 }
 
+// Register godoc
+// @Summary Register a new user
+// @Description Register a new user. Role is optional; defaults to "user".
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param user body registerPayload true "User payload"
+// @Success 201 {object} models.User
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /auth/register [post]
 func (c *UserController) Register(ctx *gin.Context) {
 	var p registerPayload
 	if err := ctx.ShouldBindJSON(&p); err != nil {
@@ -56,11 +67,22 @@ func (c *UserController) Register(ctx *gin.Context) {
 		return
 	}
 
-	// hide sensitive
 	user.PasswordHash = ""
 	ctx.JSON(http.StatusCreated, user)
 }
 
+// Login godoc
+// @Summary Login user
+// @Description Authenticate user and return JWT
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param credentials body loginPayload true "Login credentials"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /auth/login [post]
 func (c *UserController) Login(ctx *gin.Context) {
 	var p loginPayload
 	if err := ctx.ShouldBindJSON(&p); err != nil {
@@ -69,12 +91,7 @@ func (c *UserController) Login(ctx *gin.Context) {
 	}
 
 	user, err := c.Repo.GetByEmail(p.Email)
-	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
-		return
-	}
-
-	if !services.CheckPasswordHash(p.Password, user.PasswordHash) {
+	if err != nil || !services.CheckPasswordHash(p.Password, user.PasswordHash) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
@@ -88,19 +105,42 @@ func (c *UserController) Login(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"token": token})
 }
 
+// GetAll godoc
+// @Summary List all users
+// @Description Returns all users (admin only)
+// @Tags users
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Success 200 {array} models.User
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /users [get]
+// @Security BearerAuth
 func (c *UserController) GetAll(ctx *gin.Context) {
 	users, err := c.Repo.GetAll()
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
 		return
 	}
-	// strip password hashes
+
 	for i := range users {
 		users[i].PasswordHash = ""
 	}
 	ctx.JSON(http.StatusOK, users)
 }
 
+// GetByID godoc
+// @Summary Get user by ID
+// @Description Returns user by ID
+// @Tags users
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Param id path int true "User ID"
+// @Success 200 {object} models.User
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /users/{id} [get]
+// @Security BearerAuth
 func (c *UserController) GetByID(ctx *gin.Context) {
 	id, _ := strconv.Atoi(ctx.Param("id"))
 	user, err := c.Repo.GetByID(uint(id))
@@ -112,6 +152,18 @@ func (c *UserController) GetByID(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, user)
 }
 
+// Delete godoc
+// @Summary Delete user
+// @Description Delete a user by ID
+// @Tags users
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Param id path int true "User ID"
+// @Success 200 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /users/{id} [delete]
+// @Security BearerAuth
 func (c *UserController) Delete(ctx *gin.Context) {
 	id, _ := strconv.Atoi(ctx.Param("id"))
 	if err := c.Repo.Delete(uint(id)); err != nil {
