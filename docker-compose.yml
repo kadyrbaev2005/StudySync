@@ -1,4 +1,15 @@
+version: '3.8'
+
 services:
+  redis:
+    image: redis:latest
+    container_name: studysync_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+    
   db:
     image: postgres:15
     environment:
@@ -11,4 +22,5 @@ services:
       - db_data:/var/lib/postgresql/data
 
 volumes:
+  redis_data:
   db_data:
