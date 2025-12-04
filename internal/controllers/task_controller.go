@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -71,53 +72,65 @@ func (c *TaskController) CreateTask(ctx *gin.Context) {
 // @Router       /tasks [get]
 // @Security     BearerAuth
 func (c *TaskController) GetAllTasks(ctx *gin.Context) {
-	page, err := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	if err != nil || page < 1 {
-		page = 1
-	}
-
-	limit, err := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
-	if err != nil || limit < 1 {
-		limit = 10
-	}
-	if limit > 100 {
-		limit = 100
-	}
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
 
 	status := strings.TrimSpace(ctx.Query("status"))
 	subjectIDStr := strings.TrimSpace(ctx.Query("subject_id"))
-	var subjectID *uint
-	if subjectIDStr != "" {
-		if id, err := strconv.Atoi(subjectIDStr); err == nil && id > 0 {
-			tmp := uint(id)
-			subjectID = &tmp
-		} else {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid subject_id"})
+	search := strings.TrimSpace(ctx.Query("search"))
+	sort := strings.TrimSpace(ctx.Query("sort"))
+	deadlineBeforeStr := strings.TrimSpace(ctx.Query("deadline_before"))
+	deadlineAfterStr := strings.TrimSpace(ctx.Query("deadline_after"))
+
+	// Detect if request has ANY filters
+	hasFilters := status != "" ||
+		subjectIDStr != "" ||
+		search != "" ||
+		sort != "" ||
+		deadlineBeforeStr != "" ||
+		deadlineAfterStr != "" ||
+		page != 1 ||
+		limit != 10
+
+	// Only cache if no filters at all
+	if !hasFilters {
+		cached, _ := services.RedisClient.Get(services.Ctx, "tasks:all").Result()
+		if cached != "" {
+			ctx.Data(200, "application/json", []byte(cached))
 			return
 		}
 	}
 
-	search := strings.TrimSpace(ctx.Query("search"))
-	sort := strings.TrimSpace(ctx.Query("sort"))
-
-	var deadlineBefore *time.Time
-	if v := strings.TrimSpace(ctx.Query("deadline_before")); v != "" {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			deadlineBefore = &t
+	// --- Parse advanced filter options ---
+	var subjectID *uint
+	if subjectIDStr != "" {
+		if num, err := strconv.Atoi(subjectIDStr); err == nil && num > 0 {
+			tmp := uint(num)
+			subjectID = &tmp
 		} else {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "deadline_before must be RFC3339"})
+			ctx.JSON(400, gin.H{"error": "invalid subject_id"})
 			return
 		}
+	}
+
+	var deadlineBefore *time.Time
+	if deadlineBeforeStr != "" {
+		t, err := time.Parse(time.RFC3339, deadlineBeforeStr)
+		if err != nil {
+			ctx.JSON(400, gin.H{"error": "deadline_before must be RFC3339"})
+			return
+		}
+		deadlineBefore = &t
 	}
 
 	var deadlineAfter *time.Time
-	if v := strings.TrimSpace(ctx.Query("deadline_after")); v != "" {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			deadlineAfter = &t
-		} else {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "deadline_after must be RFC3339"})
+	if deadlineAfterStr != "" {
+		t, err := time.Parse(time.RFC3339, deadlineAfterStr)
+		if err != nil {
+			ctx.JSON(400, gin.H{"error": "deadline_after must be RFC3339"})
 			return
 		}
+		deadlineAfter = &t
 	}
 
 	filter := &repository.TaskFilter{
@@ -133,21 +146,27 @@ func (c *TaskController) GetAllTasks(ctx *gin.Context) {
 
 	tasks, total, err := c.Repo.GetTasks(filter)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch tasks"})
+		ctx.JSON(500, gin.H{"error": "failed to fetch tasks"})
 		return
 	}
 
-	pages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-
-	ctx.JSON(http.StatusOK, gin.H{
+	resp := gin.H{
 		"data": tasks,
 		"meta": gin.H{
-			"page":  filter.Page,
-			"limit": filter.Limit,
+			"page":  page,
+			"limit": limit,
 			"total": total,
-			"pages": pages,
+			"pages": (total + int64(limit) - 1) / int64(limit),
 		},
-	})
+	}
+
+	// Cache only unfiltered result
+	if !hasFilters {
+		jsonData, _ := json.Marshal(resp)
+		services.RedisClient.Set(services.Ctx, "tasks:all", jsonData, 30*time.Second)
+	}
+
+	ctx.JSON(200, resp)
 }
 
 // GetTaskByID godoc
@@ -166,13 +185,13 @@ func (c *TaskController) GetTaskByID(ctx *gin.Context) {
 	id, _ := strconv.Atoi(ctx.Param("id"))
 	task, err := c.Repo.GetByID(uint(id))
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+		ctx.JSON(404, gin.H{"error": "task not found"})
 		return
 	}
 
 	services.RedisClient.Del(services.Ctx, "tasks:all")
 
-	ctx.JSON(http.StatusOK, task)
+	ctx.JSON(200, task)
 }
 
 // UpdateTask godoc
@@ -194,18 +213,17 @@ func (c *TaskController) UpdateTask(ctx *gin.Context) {
 	id, _ := strconv.Atoi(ctx.Param("id"))
 	var data map[string]interface{}
 	if err := ctx.ShouldBindJSON(&data); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-
 	if err := c.Repo.Update(uint(id), data); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update task"})
+		ctx.JSON(500, gin.H{"error": "failed to update task"})
 		return
 	}
 
 	services.RedisClient.Del(services.Ctx, "tasks:all")
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "task updated"})
+	ctx.JSON(200, gin.H{"message": "task updated"})
 }
 
 // DeleteTask godoc
@@ -223,11 +241,11 @@ func (c *TaskController) UpdateTask(ctx *gin.Context) {
 func (c *TaskController) DeleteTask(ctx *gin.Context) {
 	id, _ := strconv.Atoi(ctx.Param("id"))
 	if err := c.Repo.Delete(uint(id)); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
+		ctx.JSON(500, gin.H{"error": "delete failed"})
 		return
 	}
 
 	services.RedisClient.Del(services.Ctx, "tasks:all")
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	ctx.JSON(200, gin.H{"message": "deleted"})
 }
