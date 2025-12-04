@@ -1,12 +1,14 @@
 package controllers
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/kadyrbayev2005/studysync/internal/models"
 	"github.com/kadyrbayev2005/studysync/internal/repository"
+	"github.com/kadyrbayev2005/studysync/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -43,6 +45,9 @@ func (c *TaskController) CreateTask(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create task"})
 		return
 	}
+
+	services.RedisClient.Del(services.Ctx, "tasks:all")
+
 	ctx.JSON(http.StatusCreated, task)
 }
 
@@ -58,14 +63,28 @@ func (c *TaskController) CreateTask(ctx *gin.Context) {
 // @Router       /tasks [get]
 // @Security     BearerAuth
 func (c *TaskController) GetAllTasks(ctx *gin.Context) {
-	tasks, err := c.Repo.GetAll()
-	if err != nil {
-		fmt.Printf("GetAllTasks error: %v\n", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch tasks"})
-		return
-	}
-	ctx.JSON(http.StatusOK, tasks)
+	//try to get from cache
+    cached, _ := services.RedisClient.Get(services.Ctx, "tasks:all").Result()
+    if cached != "" {
+        ctx.Data(200, "application/json", []byte(cached))
+        return
+    }
+
+	//otherwise, get from db
+    tasks, err := c.Repo.GetAll()
+    if err != nil {
+        ctx.JSON(500, gin.H{"error": err.Error()})
+        return
+    }
+
+    jsonData, _ := json.Marshal(tasks)
+
+    //put in redis
+    services.RedisClient.Set(services.Ctx, "tasks:all", jsonData, 30*time.Second)
+
+    ctx.JSON(200, tasks)
 }
+
 
 // GetTaskByID godoc
 // @Summary      Get a task by ID
@@ -86,6 +105,9 @@ func (c *TaskController) GetTaskByID(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
 		return
 	}
+
+	services.RedisClient.Del(services.Ctx, "tasks:all")
+
 	ctx.JSON(http.StatusOK, task)
 }
 
@@ -116,6 +138,9 @@ func (c *TaskController) UpdateTask(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update task"})
 		return
 	}
+
+	services.RedisClient.Del(services.Ctx, "tasks:all")
+
 	ctx.JSON(http.StatusOK, gin.H{"message": "task updated"})
 }
 
@@ -137,5 +162,8 @@ func (c *TaskController) DeleteTask(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
 		return
 	}
+
+	services.RedisClient.Del(services.Ctx, "tasks:all")
+
 	ctx.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }

@@ -41,6 +41,8 @@ func main() {
 		log.Fatal("Database connection failed:", err)
 	}
 
+	services.InitRedis()
+
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	go services.StartReminderWorker(workerCtx, db)
 

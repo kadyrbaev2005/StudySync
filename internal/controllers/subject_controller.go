@@ -1,12 +1,15 @@
 package controllers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kadyrbayev2005/studysync/internal/models"
 	"github.com/kadyrbayev2005/studysync/internal/repository"
+	"github.com/kadyrbayev2005/studysync/internal/services"
 )
 
 type SubjectController struct {
@@ -40,6 +43,9 @@ func (c *SubjectController) CreateSubject(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create subject"})
 		return
 	}
+
+	services.RedisClient.Del(services.Ctx, "subjects:all")
+
 	ctx.JSON(http.StatusCreated, subject)
 }
 
@@ -54,11 +60,21 @@ func (c *SubjectController) CreateSubject(ctx *gin.Context) {
 // @Router /subjects [get]
 // @Security BearerAuth
 func (c *SubjectController) GetAllSubjects(ctx *gin.Context) {
+	cached, _ := services.RedisClient.Get(services.Ctx, "subjects:all").Result()
+    if cached != "" {
+        ctx.Data(200, "application/json", []byte(cached))
+        return
+    }
+
 	subjects, err := c.Repo.GetAll()
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch subjects"})
 		return
 	}
+
+    jsonData, _ := json.Marshal(subjects)
+    services.RedisClient.Set(services.Ctx, "subjects:all", jsonData, 30*time.Second)
+	
 	ctx.JSON(http.StatusOK, subjects)
 }
 
@@ -81,6 +97,9 @@ func (c *SubjectController) GetSubjectByID(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "subject not found"})
 		return
 	}
+
+	services.RedisClient.Del(services.Ctx, "subjects:all")
+
 	ctx.JSON(http.StatusOK, subject)
 }
 
@@ -111,6 +130,9 @@ func (c *SubjectController) UpdateSubject(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "update failed"})
 		return
 	}
+
+	services.RedisClient.Del(services.Ctx, "subjects:all")
+
 	ctx.JSON(http.StatusOK, gin.H{"message": "subject updated"})
 }
 
@@ -132,5 +154,8 @@ func (c *SubjectController) DeleteSubject(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
 		return
 	}
+
+	services.RedisClient.Del(services.Ctx, "subjects:all")
+
 	ctx.JSON(http.StatusOK, gin.H{"message": "subject deleted"})
 }

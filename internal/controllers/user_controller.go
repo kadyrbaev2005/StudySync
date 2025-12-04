@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -68,6 +69,9 @@ func (c *UserController) Register(ctx *gin.Context) {
 	}
 
 	user.PasswordHash = ""
+
+	services.RedisClient.Del(services.Ctx, "users:all")
+
 	ctx.JSON(http.StatusCreated, user)
 }
 
@@ -102,6 +106,8 @@ func (c *UserController) Login(ctx *gin.Context) {
 		return
 	}
 
+	services.RedisClient.Del(services.Ctx, "users:all")
+
 	ctx.JSON(http.StatusOK, gin.H{"token": token})
 }
 
@@ -117,6 +123,12 @@ func (c *UserController) Login(ctx *gin.Context) {
 // @Router /users [get]
 // @Security BearerAuth
 func (c *UserController) GetAll(ctx *gin.Context) {
+	cached, _ := services.RedisClient.Get(services.Ctx, "users:all").Result()
+    if cached != "" {
+        ctx.Data(200, "application/json", []byte(cached))
+        return
+    }
+
 	users, err := c.Repo.GetAll()
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
@@ -126,6 +138,10 @@ func (c *UserController) GetAll(ctx *gin.Context) {
 	for i := range users {
 		users[i].PasswordHash = ""
 	}
+
+	jsonData, _ := json.Marshal(users)
+    services.RedisClient.Set(services.Ctx, "users:all", jsonData, 30*time.Second)
+	
 	ctx.JSON(http.StatusOK, users)
 }
 
@@ -149,6 +165,9 @@ func (c *UserController) GetByID(ctx *gin.Context) {
 		return
 	}
 	user.PasswordHash = ""
+
+	services.RedisClient.Del(services.Ctx, "users:all")
+
 	ctx.JSON(http.StatusOK, user)
 }
 
@@ -170,5 +189,8 @@ func (c *UserController) Delete(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete user"})
 		return
 	}
+	
+	services.RedisClient.Del(services.Ctx, "users:all")
+
 	ctx.JSON(http.StatusOK, gin.H{"message": "user deleted"})
 }
