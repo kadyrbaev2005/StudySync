@@ -1,9 +1,9 @@
 package controllers
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kadyrbayev2005/studysync/internal/models"
@@ -52,39 +52,103 @@ func (c *TaskController) CreateTask(ctx *gin.Context) {
 }
 
 // GetAllTasks godoc
-// @Summary      List all tasks
-// @Description  Retrieves all tasks. Requires authentication.
+// @Summary      List tasks with pagination, filtering and sorting
+// @Description  Returns a paginated list of tasks with optional filters: status, subject_id, search, date range and sorting.
 // @Tags         tasks
 // @Produce      json
-// @Param        Authorization header string true "Bearer token"
-// @Success      200 {array} models.Task
+// @Param        Authorization   header   string  true   "Bearer token"
+// @Param        page            query    int     false  "Page number (default: 1)"
+// @Param        limit           query    int     false  "Items per page (default: 10)"
+// @Param        status          query    string  false  "Filter by status (todo | in-progress | done)"
+// @Param        subject_id      query    int     false  "Filter by subject ID"
+// @Param        search          query    string  false  "Search text in title or description"
+// @Param        sort            query    string  false  "Sort by field (created_at, deadline, title) with optional 'desc'. Example: 'deadline desc'"
+// @Param        deadline_before query    string  false  "Return tasks with deadline before this timestamp (RFC3339 format)"
+// @Param        deadline_after  query    string  false  "Return tasks with deadline after this timestamp (RFC3339 format)"
+// @Success      200 {object} map[string]interface{} "Paginated response: data + meta"
 // @Failure      401 {object} map[string]string
 // @Failure      500 {object} map[string]string
 // @Router       /tasks [get]
 // @Security     BearerAuth
 func (c *TaskController) GetAllTasks(ctx *gin.Context) {
-	//try to get from cache
-    cached, _ := services.RedisClient.Get(services.Ctx, "tasks:all").Result()
-    if cached != "" {
-        ctx.Data(200, "application/json", []byte(cached))
-        return
-    }
+	page, err := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
 
-	//otherwise, get from db
-    tasks, err := c.Repo.GetAll()
-    if err != nil {
-        ctx.JSON(500, gin.H{"error": err.Error()})
-        return
-    }
+	limit, err := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
 
-    jsonData, _ := json.Marshal(tasks)
+	status := strings.TrimSpace(ctx.Query("status"))
+	subjectIDStr := strings.TrimSpace(ctx.Query("subject_id"))
+	var subjectID *uint
+	if subjectIDStr != "" {
+		if id, err := strconv.Atoi(subjectIDStr); err == nil && id > 0 {
+			tmp := uint(id)
+			subjectID = &tmp
+		} else {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid subject_id"})
+			return
+		}
+	}
 
-    //put in redis
-    services.RedisClient.Set(services.Ctx, "tasks:all", jsonData, 30*time.Second)
+	search := strings.TrimSpace(ctx.Query("search"))
+	sort := strings.TrimSpace(ctx.Query("sort"))
 
-    ctx.JSON(200, tasks)
+	var deadlineBefore *time.Time
+	if v := strings.TrimSpace(ctx.Query("deadline_before")); v != "" {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			deadlineBefore = &t
+		} else {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "deadline_before must be RFC3339"})
+			return
+		}
+	}
+
+	var deadlineAfter *time.Time
+	if v := strings.TrimSpace(ctx.Query("deadline_after")); v != "" {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			deadlineAfter = &t
+		} else {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "deadline_after must be RFC3339"})
+			return
+		}
+	}
+
+	filter := &repository.TaskFilter{
+		Page:           page,
+		Limit:          limit,
+		Status:         status,
+		SubjectID:      subjectID,
+		Search:         search,
+		Sort:           sort,
+		DeadlineBefore: deadlineBefore,
+		DeadlineAfter:  deadlineAfter,
+	}
+
+	tasks, total, err := c.Repo.GetTasks(filter)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch tasks"})
+		return
+	}
+
+	pages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"data": tasks,
+		"meta": gin.H{
+			"page":  filter.Page,
+			"limit": filter.Limit,
+			"total": total,
+			"pages": pages,
+		},
+	})
 }
-
 
 // GetTaskByID godoc
 // @Summary      Get a task by ID

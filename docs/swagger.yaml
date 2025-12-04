@@ -75,6 +75,10 @@ definitions:
       status:
         example: in-progress
         type: string
+      subject:
+        allOf:
+        - $ref: '#/definitions/models.Subject'
+        description: <- add this
       subject_id:
         example: 1
         type: integer
@@ -493,22 +497,55 @@ paths:
       - subjects
   /tasks:
     get:
-      description: Retrieves all tasks. Requires authentication.
+      description: 'Returns a paginated list of tasks with optional filters: status,
+        subject_id, search, date range and sorting.'
       parameters:
       - description: Bearer token
         in: header
         name: Authorization
         required: true
         type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by status (todo | in-progress | done)
+        in: query
+        name: status
+        type: string
+      - description: Filter by subject ID
+        in: query
+        name: subject_id
+        type: integer
+      - description: Search text in title or description
+        in: query
+        name: search
+        type: string
+      - description: 'Sort by field (created_at, deadline, title) with optional ''desc''.
+          Example: ''deadline desc'''
+        in: query
+        name: sort
+        type: string
+      - description: Return tasks with deadline before this timestamp (RFC3339 format)
+        in: query
+        name: deadline_before
+        type: string
+      - description: Return tasks with deadline after this timestamp (RFC3339 format)
+        in: query
+        name: deadline_after
+        type: string
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: 'Paginated response: data + meta'
           schema:
-            items:
-              $ref: '#/definitions/models.Task'
-            type: array
+            additionalProperties: true
+            type: object
         "401":
           description: Unauthorized
           schema:
@@ -523,7 +560,7 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: List all tasks
+      summary: List tasks with pagination, filtering and sorting
       tags:
       - tasks
     post:

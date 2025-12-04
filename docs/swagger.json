@@ -618,14 +618,14 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieves all tasks. Requires authentication.",
+                "description": "Returns a paginated list of tasks with optional filters: status, subject_id, search, date range and sorting.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "tasks"
                 ],
-                "summary": "List all tasks",
+                "summary": "List tasks with pagination, filtering and sorting",
                 "parameters": [
                     {
                         "type": "string",
@@ -633,16 +633,62 @@
                         "name": "Authorization",
                         "in": "header",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 10)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (todo | in-progress | done)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by subject ID",
+                        "name": "subject_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search text in title or description",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by field (created_at, deadline, title) with optional 'desc'. Example: 'deadline desc'",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Return tasks with deadline before this timestamp (RFC3339 format)",
+                        "name": "deadline_before",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Return tasks with deadline after this timestamp (RFC3339 format)",
+                        "name": "deadline_after",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Paginated response: data + meta",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.Task"
-                            }
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "401": {
@@ -1224,6 +1270,14 @@
                 "status": {
                     "type": "string",
                     "example": "in-progress"
+                },
+                "subject": {
+                    "description": "\u003c- add this",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Subject"
+                        }
+                    ]
                 },
                 "subject_id": {
                     "type": "integer",
