@@ -18,7 +18,7 @@ func ConnectDB() (*gorm.DB, error) {
 
 	// Auto migrate models
 	db.AutoMigrate(&models.User{}, &models.Subject{}, &models.Task{}, &models.Deadline{})
-	fmt.Println("✅ Connected to database and migrated successfully")
+	fmt.Println("Connected to database and migrated successfully")
 
 	return db, nil
 }

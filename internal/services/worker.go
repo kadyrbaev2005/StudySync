@@ -9,8 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// StartReminderWorker - background worker that periodically scans deadlines and prints reminders.
-// In real app replace printing with sending emails/notifications.
 func StartReminderWorker(ctx context.Context, db *gorm.DB) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
@@ -22,16 +20,38 @@ func StartReminderWorker(ctx context.Context, db *gorm.DB) {
 			return
 		case <-ticker.C:
 			now := time.Now()
-			soon := now.Add(15 * time.Minute) // example: deadlines in next 15 min
+			soon := now.Add(15 * time.Minute)
+
 			var due []models.Deadline
-			// find deadlines between now and soon
-			if err := db.Preload("Task").Where("due_date > ? AND due_date <= ?", now, soon).Find(&due).Error; err != nil {
+
+			if err := db.Preload("Task").Preload("User").
+				Where("due_date > ? AND due_date <= ?", now, soon).
+				Find(&due).Error; err != nil {
+
 				fmt.Println("worker query error:", err)
 				continue
 			}
+
 			for _, d := range due {
-				// simple reminder action (log). Replace with real notification.
-				fmt.Printf("Reminder: task '%s' is due at %s (deadline id=%d)\n", d.Task.Title, d.DueDate.Format(time.RFC3339), d.ID)
+				userEmail := d.User.Email
+				if userEmail == "" {
+					continue
+				}
+
+				subject := "StudySync Reminder: Upcoming Deadline"
+				body := fmt.Sprintf(
+					"Task '%s' is due at %s\nDescription: %s",
+					d.Task.Title,
+					d.DueDate.Format(time.RFC3339),
+					d.Task.Description,
+				)
+
+				err := SendEmail(userEmail, subject, body)
+				if err != nil {
+					fmt.Println("Failed to send email:", err)
+				} else {
+					fmt.Println("Email sent to", userEmail)
+				}
 			}
 		}
 	}
