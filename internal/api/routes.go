@@ -75,6 +75,7 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 
 		// Deadlines
 		deadlineRoutes := protected.Group("/deadlines")
+		deadlineRoutes.Use(middleware.RoleMiddleware(services.RoleAdmin))
 		{
 			deadlineRoutes.POST("", deadlineController.CreateDeadline)
 			deadlineRoutes.GET("", deadlineController.GetAllDeadlines)
