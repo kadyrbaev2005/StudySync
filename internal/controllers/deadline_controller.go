@@ -77,10 +77,10 @@ func (c *DeadlineController) CreateDeadline(ctx *gin.Context) {
 // @Security BearerAuth
 func (c *DeadlineController) GetAllDeadlines(ctx *gin.Context) {
 	cached, _ := services.RedisClient.Get(services.Ctx, "deadlines:all").Result()
-    if cached != "" {
-        ctx.Data(200, "application/json", []byte(cached))
-        return
-    }
+	if cached != "" {
+		ctx.Data(200, "application/json", []byte(cached))
+		return
+	}
 
 	deadlines, err := c.Repo.GetAll()
 	if err != nil {
@@ -89,8 +89,8 @@ func (c *DeadlineController) GetAllDeadlines(ctx *gin.Context) {
 	}
 
 	jsonData, _ := json.Marshal(deadlines)
-    services.RedisClient.Set(services.Ctx, "deadlines:all", jsonData, 30*time.Second)
-	
+	services.RedisClient.Set(services.Ctx, "deadlines:all", jsonData, 30*time.Second)
+
 	ctx.JSON(http.StatusOK, deadlines)
 }
 

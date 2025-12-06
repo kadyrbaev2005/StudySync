@@ -61,10 +61,10 @@ func (c *SubjectController) CreateSubject(ctx *gin.Context) {
 // @Security BearerAuth
 func (c *SubjectController) GetAllSubjects(ctx *gin.Context) {
 	cached, _ := services.RedisClient.Get(services.Ctx, "subjects:all").Result()
-    if cached != "" {
-        ctx.Data(200, "application/json", []byte(cached))
-        return
-    }
+	if cached != "" {
+		ctx.Data(200, "application/json", []byte(cached))
+		return
+	}
 
 	subjects, err := c.Repo.GetAll()
 	if err != nil {
@@ -72,9 +72,9 @@ func (c *SubjectController) GetAllSubjects(ctx *gin.Context) {
 		return
 	}
 
-    jsonData, _ := json.Marshal(subjects)
-    services.RedisClient.Set(services.Ctx, "subjects:all", jsonData, 30*time.Second)
-	
+	jsonData, _ := json.Marshal(subjects)
+	services.RedisClient.Set(services.Ctx, "subjects:all", jsonData, 30*time.Second)
+
 	ctx.JSON(http.StatusOK, subjects)
 }
 

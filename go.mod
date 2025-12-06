@@ -4,6 +4,7 @@ go 1.25.1
 
 require (
 	github.com/gin-gonic/gin v1.11.0
+	github.com/redis/go-redis/v9 v9.17.2
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.16.6
@@ -26,8 +27,8 @@ require (
 	github.com/go-openapi/swag/stringutils v0.25.4 // indirect
 	github.com/go-openapi/swag/typeutils v0.25.4 // indirect
 	github.com/go-openapi/swag/yamlutils v0.25.4 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/redis/go-redis/v9 v9.17.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 )
 

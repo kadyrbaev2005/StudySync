@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/kadyrbayev2005/studysync/internal/models"
@@ -18,7 +17,7 @@ func StartReminderWorker(ctx context.Context, db *gorm.DB) {
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("Reminder worker stopped")
+			Info("Reminder worker stopped")
 			return
 		case <-ticker.C:
 			now := time.Now()
@@ -26,12 +25,12 @@ func StartReminderWorker(ctx context.Context, db *gorm.DB) {
 			var due []models.Deadline
 			// find deadlines between now and soon
 			if err := db.Preload("Task").Where("due_date > ? AND due_date <= ?", now, soon).Find(&due).Error; err != nil {
-				fmt.Println("worker query error:", err)
+				Error("worker query error", "error", err)
 				continue
 			}
 			for _, d := range due {
 				// simple reminder action (log). Replace with real notification.
-				fmt.Printf("Reminder: task '%s' is due at %s (deadline id=%d)\n", d.Task.Title, d.DueDate.Format(time.RFC3339), d.ID)
+				Info("Upcoming deadline reminder", "task_title", d.Task.Title, "due_date", d.DueDate, "deadline_id", d.ID)
 			}
 		}
 	}

@@ -22,13 +22,13 @@ func NewUserController(repo *repository.UserRepository) *UserController {
 
 type registerPayload struct {
 	Name     string `json:"name" binding:"required"`
-	Email    string `json:"email" binding:"required,email"`
+	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required,min=6"`
 	Role     string `json:"role"`
 }
 
 type loginPayload struct {
-	Email    string `json:"email" binding:"required,email"`
+	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -53,7 +53,7 @@ func (c *UserController) Register(ctx *gin.Context) {
 	hashed := services.HashPassword(p.Password)
 	user := models.User{
 		Name:         p.Name,
-		Email:        p.Email,
+		Username:     p.Username,
 		PasswordHash: hashed,
 		Role:         p.Role,
 		CreatedAt:    time.Now(),
@@ -94,7 +94,7 @@ func (c *UserController) Login(ctx *gin.Context) {
 		return
 	}
 
-	user, err := c.Repo.GetByEmail(p.Email)
+	user, err := c.Repo.GetByUsername(p.Username)
 	if err != nil || !services.CheckPasswordHash(p.Password, user.PasswordHash) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
@@ -124,10 +124,10 @@ func (c *UserController) Login(ctx *gin.Context) {
 // @Security BearerAuth
 func (c *UserController) GetAll(ctx *gin.Context) {
 	cached, _ := services.RedisClient.Get(services.Ctx, "users:all").Result()
-    if cached != "" {
-        ctx.Data(200, "application/json", []byte(cached))
-        return
-    }
+	if cached != "" {
+		ctx.Data(200, "application/json", []byte(cached))
+		return
+	}
 
 	users, err := c.Repo.GetAll()
 	if err != nil {
@@ -140,8 +140,8 @@ func (c *UserController) GetAll(ctx *gin.Context) {
 	}
 
 	jsonData, _ := json.Marshal(users)
-    services.RedisClient.Set(services.Ctx, "users:all", jsonData, 30*time.Second)
-	
+	services.RedisClient.Set(services.Ctx, "users:all", jsonData, 30*time.Second)
+
 	ctx.JSON(http.StatusOK, users)
 }
 
@@ -189,7 +189,7 @@ func (c *UserController) Delete(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete user"})
 		return
 	}
-	
+
 	services.RedisClient.Del(services.Ctx, "users:all")
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "user deleted"})

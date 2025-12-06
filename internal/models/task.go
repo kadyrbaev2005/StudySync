@@ -11,4 +11,5 @@ type Task struct {
 	SubjectID   uint      `json:"subject_id" example:"1"`
 	Subject     Subject   `json:"subject" gorm:"foreignKey:SubjectID"` // <- add this
 	CreatedAt   time.Time `json:"created_at"`
+	SprintID    uint      `json:"sprint_id" gorm:"default:null"`
 }

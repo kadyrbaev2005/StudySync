@@ -14,7 +14,11 @@ import (
 )
 
 func SetupRouter(db *gorm.DB) *gin.Engine {
-	r := gin.Default()
+	r := gin.New()
+
+	// Добавляем свой логгер и recovery
+	r.Use(middleware.GinLogger())
+	r.Use(gin.Recovery())
 
 	// repositories
 	userRepo := repository.NewUserRepository(db)
