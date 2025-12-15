@@ -56,3 +56,7 @@ func StartReminderWorker(ctx context.Context, db *gorm.DB) {
 		}
 	}
 }
+
+func SendEmail(userEmail, subject, body string) any {
+	panic("unimplemented")
+}
