@@ -10,17 +10,36 @@ services:
       - redis_data:/data
     restart: always
     
-  db:
+  # PostgreSQL database service
+  postgres:
     image: postgres:15
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: studysync
+    container_name: studysync_postgres
     ports:
       - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: studysync
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+
+  # Go API service
+  api:
+    build: .
+    container_name: studysync-api
+    ports:
+      - "8080:8080"   # API port exposed to host
+    depends_on:
+      - postgres           # wait for DB to start
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432   # PostgreSQL container port inside Docker
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: studysync
+    command: ["./main"]  # run the built Go server
 
 volumes:
   redis_data:
   db_data:
+  pgdata:

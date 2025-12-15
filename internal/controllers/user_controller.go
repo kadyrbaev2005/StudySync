@@ -94,6 +94,7 @@ func (c *UserController) Login(ctx *gin.Context) {
 		return
 	}
 
+	// Use Email instead of Username
 	user, err := c.Repo.GetByEmail(p.Email)
 	if err != nil || !services.CheckPasswordHash(p.Password, user.PasswordHash) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
