@@ -38,31 +38,39 @@ func NewDeadlineController(repo *repository.DeadlineRepository, taskRepo *reposi
 
 // @Param deadline body models.DeadlineRequest true "Deadline payload"
 func (c *DeadlineController) CreateDeadline(ctx *gin.Context) {
-	var payload models.DeadlineRequest
-	if err := ctx.ShouldBindJSON(&payload); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+    var payload models.DeadlineRequest
+    if err := ctx.ShouldBindJSON(&payload); err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
 
-	// verify task exists
-	if _, err := c.TaskRepo.GetByID(payload.TaskID); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "task not found"})
-		return
-	}
+    // Verify task exists
+    if _, err := c.TaskRepo.GetByID(payload.TaskID); err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": "task not found"})
+        return
+    }
 
-	d := models.Deadline{
-		TaskID:    payload.TaskID,
-		DueDate:   payload.DueDate,
-		CreatedAt: time.Now(),
-	}
-	if err := c.Repo.Create(&d); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create deadline"})
-		return
-	}
+    // Get user ID from JWT context
+    userID, exists := ctx.Get("user_id")
+    if !exists {
+        ctx.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+        return
+    }
 
-	services.RedisClient.Del(services.Ctx, "deadlines:all")
+    d := models.Deadline{
+        TaskID:    payload.TaskID,
+        UserID:    userID.(uint),
+        DueDate:   payload.DueDate,
+        CreatedAt: time.Now(),
+    }
+    if err := c.Repo.Create(&d); err != nil {
+        ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create deadline"})
+        return
+    }
 
-	ctx.JSON(http.StatusCreated, d)
+    services.RedisClient.Del(services.Ctx, "deadlines:all")
+
+    ctx.JSON(http.StatusCreated, d)
 }
 
 // GetAllDeadlines godoc
@@ -141,4 +149,37 @@ func (c *DeadlineController) DeleteDeadline(ctx *gin.Context) {
 	services.RedisClient.Del(services.Ctx, "deadlines:all")
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "deadline deleted"})
+}
+
+// UpdateDeadline godoc
+// @Summary Update a deadline
+// @Description Update a deadline by its ID
+// @Tags deadlines
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Param id path int true "Deadline ID"
+// @Param data body map[string]interface{} true "Update payload"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /deadlines/{id} [put]
+// @Security BearerAuth
+func (c *DeadlineController) UpdateDeadline(ctx *gin.Context) {
+    id, _ := strconv.Atoi(ctx.Param("id"))
+    var data map[string]interface{}
+    if err := ctx.ShouldBindJSON(&data); err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+    if err := c.Repo.Update(uint(id), data); err != nil {
+        ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update deadline"})
+        return
+    }
+
+    services.RedisClient.Del(services.Ctx, "deadlines:all")
+
+    ctx.JSON(http.StatusOK, gin.H{"message": "deadline updated"})
 }
