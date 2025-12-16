@@ -25,6 +25,8 @@ func main() {
 
     // Инициализация логгера - ДОЛЖНА БЫТЬ ПЕРВОЙ!
     services.InitLogger()
+	
+	services.InitJWT()
 
     // Теперь можем логировать
     services.Debug("Logger initialized successfully")
