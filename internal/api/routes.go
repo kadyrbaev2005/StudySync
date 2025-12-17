@@ -1,6 +1,9 @@
 package api
 
 import (
+	"net/http"
+	_ "net/http/pprof"
+
 	_ "github.com/kadyrbayev2005/studysync/docs"
 	"github.com/kadyrbayev2005/studysync/internal/controllers"
 	"github.com/kadyrbayev2005/studysync/internal/middleware"
@@ -40,6 +43,55 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// stress test endpoint
+	r.GET("/stress/start", func(c *gin.Context) {
+		if GlobalStressManager != nil {
+			go GlobalStressManager.StartStress() // Запускаем в горутине чтобы не блокировать ответ
+			c.JSON(200, gin.H{
+				"message": "CPU stress test started",
+				"status":  "running",
+			})
+		} else {
+			c.JSON(500, gin.H{"error": "Stress manager not initialized"})
+		}
+	})
+	r.GET("/stress/stop", func(c *gin.Context) {
+		if GlobalStressManager != nil {
+			GlobalStressManager.StopStress()
+			c.JSON(200, gin.H{
+				"message": "CPU stress test stopped",
+				"status":  "stopped",
+			})
+		} else {
+			c.JSON(500, gin.H{"error": "Stress manager not initialized"})
+		}
+	})
+	r.GET("/stress/status", func(c *gin.Context) {
+		// Импортируем пакет stress для проверки статуса
+		// В реальном приложении лучше использовать интерфейс
+		c.JSON(200, gin.H{
+			"running":   GlobalStressManager != nil,
+			"cpu_cores": 0, // Будет заполнено в будущем
+		})
+	})
+
+	// pprof routes
+	pprofGroup := r.Group("/debug/pprof")
+	{
+		pprofGroup.GET("/", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/cmdline", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/profile", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.POST("/symbol", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/symbol", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/trace", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/allocs", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/block", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/goroutine", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/heap", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/mutex", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/threadcreate", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+	}
 
 	// auth routes
 	auth := r.Group("/auth")

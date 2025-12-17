@@ -1,0 +1,21 @@
+Showing nodes accounting for 164.35s, 100% of 164.35s total
+      flat  flat%   sum%        cum   cum%
+   156.70s 95.35% 95.35%    164.35s   100%  github.com/kadyrbayev2005/studysync/internal/stress.HeavyWork (inline)
+     7.65s  4.65%   100%      7.65s  4.65%  runtime.asyncPreempt
+         0     0%   100%    164.35s   100%  github.com/kadyrbayev2005/studysync/internal/stress.StartStress.func1
+Total: 164.35s
+ROUTINE ======================== github.com/kadyrbayev2005/studysync/internal/stress.HeavyWork in /Users/alanumbetaly/StudySync/internal/stress/stress.go
+   156.70s    164.35s (flat, cum)   100% of Total
+         .          .     27:func HeavyWork() {
+         .          .     28:	sum := 0
+   156.70s    164.35s     29:	for i := 0; i < 100_000_000; i++ {
+         .          .     30:		sum += i
+         .          .     31:	}
+         .          .     32:	// Предотвращаем оптимизацию компилятора
+         .          .     33:	_ = sum
+         .          .     34:}
+Showing nodes accounting for 164.35s, 100% of 164.35s total
+      flat  flat%   sum%        cum   cum%
+   156.70s 95.35% 95.35%    164.35s   100%  github.com/kadyrbayev2005/studysync/internal/stress.HeavyWork (inline)
+     7.65s  4.65%   100%      7.65s  4.65%  runtime.asyncPreempt
+         0     0%   100%    164.35s   100%  github.com/kadyrbayev2005/studysync/internal/stress.StartStress.func1
