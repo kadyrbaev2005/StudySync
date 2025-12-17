@@ -32,10 +32,10 @@ services:
     depends_on:
       - postgres           # wait for DB to start
     environment:
-      DB_HOST: db
+      DB_HOST: postgres
       DB_PORT: 5432   # PostgreSQL container port inside Docker
       DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_PASSWORD: password
       DB_NAME: studysync
     command: ["./main"]  # run the built Go server
 
