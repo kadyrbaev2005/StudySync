@@ -23,12 +23,12 @@ test-integration:
 # Run database migrations up
 migrate-up:
 	@echo "Running migrations up..."
-	migrate -path migrations -database "postgres://postgres:postgres@localhost:5432/studysync?sslmode=disable" up
+	migrate -path migrations -database "postgres://postgres:password@localhost:5433/studysync?sslmode=disable" up
 
 # Run database migrations down
 migrate-down:
 	@echo "Running migrations down..."
-	migrate -path migrations -database "postgres://postgres:postgres@localhost:5432/studysync?sslmode=disable" down 1
+	migrate -path migrations -database "postgres://postgres:password@localhost:5433/studysync?sslmode=disable" down 1
 
 # Create new migration
 migrate-create:
