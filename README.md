@@ -44,5 +44,30 @@ cd studysync
 # Start services using Docker Compose
 docker-compose up -d
 
+# Updating DB migrations
+migrate -path migrations -database "postgres://postgres:password@localhost:5433/studysync?sslmode=disable" up
+
+# Execute the program
+go run cmd/main.go
+
 # The API will be available at http://localhost:8080
 # Swagger UI: http://localhost:8080/swagger/index.html
+```
+### Option 2: Using MakerFile
+```bash
+# Clone the repository
+git clone https://github.com/kadyrbayev2005/studysync.git
+cd studysync
+
+# Start services using Docker Compose
+make docker up
+
+# Updating DB migrations
+make migrate-up
+
+# Execute the program
+make run
+
+# For any other commands
+make help
+```
