@@ -18,7 +18,6 @@ import (
 func main() {
     // Load .env file
     if err := godotenv.Load(); err != nil {
-        // Это вызовет панику если Logger еще не инициализирован
         // Лучше использовать стандартный вывод для ошибок до инициализации логгера
         println("No .env file found, using system environment variables")
     }
